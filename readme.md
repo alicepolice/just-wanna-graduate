@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="ijwg_icon_transparent.svg" alt="I Just Wanna Graduate" width="200"/>
+  <img src="ijwg_icon_transparent.svg" alt="I Just Wanna Graduate" width="250"/>
 </p>
 
 <h1 align="center">🧵 I Just Wanna Graduate</h1>
@@ -53,6 +53,11 @@
 - 🧱 模块库：几百个可插拔模块，像乐高一样搭网络
 - 📄 Paper-Aware：自动检索论文，提取核心模块
 - 🌳 多卡多方案搜索树：并行探索多条改进路径
+
+## 王牌杀手
+假设手上有 4 张 4090，每一轮让 AI 基于当前最优结构生成 4 个不同的改进方案，一张卡跑一个，并行训练。跑完对比指标，涨了的留下作为下一轮起点，跑挂或变差的直接砍掉。4 个全挂？回退上一版，重新生成 4 个方案，继续迭代
+
+你的 CC 反代 Claude Opus 4.6 超级消耗王，让你的 API 余额比实验指标掉得还快
 
 ## 爆杀结尾
 
