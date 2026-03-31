@@ -59,6 +59,15 @@
 
 你的 CC 反代 Claude Opus 4.6 超级消耗王，让你的 API 余额比实验指标掉得还快
 
+## 方案交流
+欢迎对学术裁缝 Agent 感兴趣的同学一起交流，无论是技术方案、踩过的坑还是相关经验，都可以聊
+
+📮 QQ: 1727235919
+
+<p align="center">
+  <img src="jiaoliu.png" alt="交流" width="300"/>
+</p>
+
 ## 爆杀结尾
 
 <p align="center">
