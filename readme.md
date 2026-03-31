@@ -1,4 +1,8 @@
 
+<p align="center">
+  <img src="ijwg_icon_transparent.svg" alt="I Just Wanna Graduate" width="200"/>
+</p>
+
 <h1 align="center">🧵 I Just Wanna Graduate</h1>
 
 <p align="center">
