@@ -73,3 +73,29 @@
 <p align="center">
   <em>如果一个研究流程可以被 AI 完全自动化，那它本身就不该被称为"研究"</em>
 </p>
+
+## Related Work
+[GitHub - DavidZWZ/Awesome-Deep-Research: \[Up-to-date\] Awesome Agentic Deep Research Resources](https://github.com/DavidZWZ/Awesome-Deep-Research)
+
+[GitHub - oboard/claude-code-rev: Runnable ClaudeCode source code](https://github.com/oboard/claude-code-rev)
+
+[GitHub - ruc-datalab/DeepAnalyze: DeepAnalyze is the first agentic LLM for autonomous data science. 🎈你的AI数据分析师，自动分析大量数据，一键生成专业分析报告！](https://github.com/ruc-datalab/DeepAnalyze)
+
+[GitHub - HKUDS/AI-Researcher: \[NeurIPS2025\] "AI-Researcher: Autonomous Scientific Innovation" -- A production-ready version: https://novix.science/chat](https://github.com/HKUDS/AI-Researcher)
+
+[GitHub - lastmile-ai/mcp-agent: Build effective agents using Model Context Protocol and simple workflow patterns](https://github.com/lastmile-ai/mcp-agent)
+
+
+[GitHub - OpenHands/OpenHands: 🙌 OpenHands: AI-Driven Development](https://github.com/OpenHands/OpenHands)
+
+[GitHub - Aider-AI/aider: aider is AI pair programming in your terminal](https://github.com/Aider-AI/aider)
+
+
+[GitHub - WecoAI/aideml: AIDE: AI-Driven Exploration in the Space of Code. The machine Learning engineering agent that automates AI R&D.](https://github.com/WecoAI/aideml)
+
+[GitHub - SamuelSchmidgall/AgentLaboratory: Agent Laboratory is an end-to-end autonomous research workflow meant to assist you as the human researcher toward implementing your research ideas](https://github.com/SamuelSchmidgall/AgentLaboratory)
+
+[GitHub - SakanaAI/AI-Scientist-v2: The AI Scientist-v2: Workshop-Level Automated Scientific Discovery via Agentic Tree Search](https://github.com/SakanaAI/AI-Scientist-v2)
+
+
+[GitHub - Pthahnix/De-Anthropocentric-Research-Engine: De-Anthropocentric Research Engine — AI-powered academic research automation with deep literature survey, gap analysis, idea generation, experiment design & execution. Combines iterative deep research, adversarial debate, evolutionary...](https://github.com/Pthahnix/De-Anthropocentric-Research-Engine)
