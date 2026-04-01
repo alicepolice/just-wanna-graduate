@@ -75,6 +75,8 @@
 </p>
 
 ## Related Work
+[GitHub - Imbad0202/academic-research-skills: Academic Research Skills for Claude Code: research → write → review → revise → finalize](https://github.com/Imbad0202/academic-research-skills)
+
 [GitHub - DavidZWZ/Awesome-Deep-Research: \[Up-to-date\] Awesome Agentic Deep Research Resources](https://github.com/DavidZWZ/Awesome-Deep-Research)
 
 [GitHub - oboard/claude-code-rev: Runnable ClaudeCode source code](https://github.com/oboard/claude-code-rev)
