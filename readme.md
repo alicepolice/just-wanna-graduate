@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="ijwg_icon_transparent.svg" alt="I Just Wanna Graduate" width="250"/>
+  <img src="template/ijwg_icon_transparent.svg" alt="I Just Wanna Graduate" width="250"/>
 </p>
 
 <h1 align="center">🧵 I Just Wanna Graduate</h1>
@@ -65,7 +65,7 @@
 📮 QQ: 1727235919
 
 <p align="center">
-  <img src="jiaoliu.png" alt="交流" width="300"/>
+  <img src="template/jiaoliu.png" alt="交流" width="300"/>
 </p>
 
 ## 爆杀结尾
