@@ -105,6 +105,7 @@ def _call_claude(system_prompt: str, user_prompt: str) -> dict | None:
     cmd = [
         "claude",
         "--print",
+        "--permission-mode", "auto",
         "--system-prompt", system_prompt,
     ]
     if CLAUDE_MODEL:
@@ -112,25 +113,31 @@ def _call_claude(system_prompt: str, user_prompt: str) -> dict | None:
     if CLAUDE_EFFORT:
         cmd += ["--effort", CLAUDE_EFFORT]
     cmd.append(user_prompt)
-    logger.debug("CMD: claude --print --system-prompt <skill> <prompt>")
+    logger.debug("CMD: claude --print --permission-mode auto --system-prompt <skill> <prompt>")
 
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
             cwd=str(DEIM_ROOT),
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
             text=True,
-            timeout=1800,  # 30 分钟超时
         )
+        output_lines = []
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+            output_lines.append(line)
+        proc.wait(timeout=1800)
     except subprocess.TimeoutExpired:
+        proc.kill()
         logger.error("claude -p 超时（30 分钟）")
         return None
 
     if proc.returncode != 0:
-        logger.error("claude -p 退出码 %d:\n%s", proc.returncode, proc.stderr[-1000:])
+        logger.error("claude -p 退出码 %d", proc.returncode)
         return None
 
-    output = proc.stdout
+    output = "".join(output_lines)
     logger.debug("claude 输出长度: %d 字符", len(output))
     return _parse_output(output)
 
