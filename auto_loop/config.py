@@ -17,7 +17,7 @@ TEST_SH        = DEIM_ROOT / "scripts" / "test.sh"
 SKILL_FILE     = DEIM_ROOT / ".claude" / "skills" / "缝合任务" / "SKILL.md"
 
 # ── 实验记录目录 ───────────────────────────────────────────────
-RECORD_DIR     = DEIM_ROOT / "prompt" / "record"
+RECORD_DIR     = DEIM_ROOT / "configs_lab" / "test" / "record"
 
 # ── 训练输出根目录 ─────────────────────────────────────────────
 OUTPUTS_ROOT   = DEIM_ROOT / "outputs"
@@ -30,3 +30,10 @@ LOOP_LOG       = TOOL_ROOT / "loop.log"
 
 # ── conda 环境名（用于激活 deim 环境运行 get_info）─────────────
 CONDA_ENV      = "deim"
+
+# ── Claude 调用配置 ────────────────────────────────────────────
+# 模型 ID，留空则使用 claude 默认值
+# 可选: "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"
+CLAUDE_MODEL   = "claude-sonnet-4-6"
+# thinking effort: "low" | "medium" | "high" | "" (留空则不传)
+CLAUDE_EFFORT  = "high"

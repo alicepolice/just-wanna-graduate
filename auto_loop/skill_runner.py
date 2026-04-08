@@ -15,6 +15,7 @@ import textwrap
 from pathlib import Path
 
 from config import DEIM_ROOT, SKILL_FILE
+from config import CLAUDE_MODEL, CLAUDE_EFFORT
 
 logger = logging.getLogger(__name__)
 
@@ -106,8 +107,12 @@ def _call_claude(system_prompt: str, user_prompt: str) -> dict | None:
         "--print",
         "--dangerously-skip-permissions",
         "--system-prompt", system_prompt,
-        user_prompt,
     ]
+    if CLAUDE_MODEL:
+        cmd += ["--model", CLAUDE_MODEL]
+    if CLAUDE_EFFORT:
+        cmd += ["--thinking-effort", CLAUDE_EFFORT]
+    cmd.append(user_prompt)
     logger.debug("CMD: claude --print --dangerously-skip-permissions --system-prompt <skill> <prompt>")
 
     try:
