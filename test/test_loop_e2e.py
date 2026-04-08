@@ -117,7 +117,7 @@ def sandbox(tmp_path, monkeypatch):
     """创建一个临时沙箱环境，重定向所有路径。"""
     tmp_deim = tmp_path / "DEIM-FAKE"
     tmp_deim.mkdir()
-    config_dir = tmp_path / "config"
+    config_dir = tmp_path / "state"
     config_dir.mkdir()
 
     # 重定向 config 中的路径

@@ -67,7 +67,7 @@ just-wanna-graduate/
 │   ├── skill_runner.py   # 通过 claude-agent-sdk 调用学术裁缝 Skill，解析输出
 │   ├── trainer.py        # 训练调度，通过 train.sh + tmux 启动并监控训练
 │   └── evaluator.py      # 结果提取，从 eval.pth 读取 COCO 指标（AP / AP50）
-├── config/
+├── state/
 │   └── state.json        # 迭代状态持久化（自动生成）
 └── template/             # 需求文档与参考资料
 ```
@@ -100,7 +100,7 @@ just-wanna-graduate/
 
 ### 状态持久化
 
-所有迭代状态保存在 `config/state.json`，包含：
+所有迭代状态保存在 `state/state.json`，包含：
 
 | 字段 | 说明 |
 |------|------|

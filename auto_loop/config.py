@@ -29,7 +29,7 @@ OUTPUTS_ROOT   = DEIM_ROOT / "outputs"
 
 # ── 本工具目录 ─────────────────────────────────────────────────
 TOOL_ROOT      = Path(__file__).resolve().parent.parent
-STATE_FILE     = TOOL_ROOT / "config" / "state.json"
+STATE_FILE     = TOOL_ROOT / "state" / "state.json"
 LOOP_LOG       = TOOL_ROOT / "loop.log"
 
 # ── 迭代行为配置（原 loop_config.yml）────────────────────────────
