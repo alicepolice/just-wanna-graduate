@@ -2,6 +2,8 @@
 结果提取 — 从训练输出目录读取 eval.pth，提取 COCO 指标。
 若 eval.pth 不存在，尝试运行 test.sh 生成。
 """
+from __future__ import annotations
+
 import json
 import logging
 import subprocess
@@ -10,25 +12,20 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from config import DEIM_ROOT, OUTPUTS_ROOT, TEST_SH, CONDA_ENV
+try:
+    from .config import DEIM_ROOT, OUTPUTS_ROOT, TEST_SH, resolve_output_dir
+except ImportError:
+    from config import DEIM_ROOT, OUTPUTS_ROOT, TEST_SH, resolve_output_dir
 
 logger = logging.getLogger(__name__)
 
 
 def find_output_dir(yml_path: str) -> Path:
     """从训练 yml 文件名推断 outputs/ 下的目录名。"""
-    name = Path(yml_path).stem  # e.g. deim_dfine_n_mm_FD_v14
-    # 先在 outputs/ 直接子目录找，再递归找
-    for candidate in OUTPUTS_ROOT.iterdir():
-        if candidate.is_dir() and candidate.name == name:
-            return candidate
-    # 递归一层
-    for subdir in OUTPUTS_ROOT.iterdir():
-        if subdir.is_dir():
-            candidate = subdir / name
-            if candidate.is_dir():
-                return candidate
-    raise FileNotFoundError(f"找不到训练输出目录: {name}，已搜索 {OUTPUTS_ROOT}")
+    output_dir = resolve_output_dir(yml_path)
+    if output_dir.is_dir():
+        return output_dir
+    raise FileNotFoundError(f"找不到训练输出目录: {output_dir}，已搜索 {OUTPUTS_ROOT}")
 
 
 def get_eval_pth(output_dir: Path, gpu: str = "0", auto_eval: bool = True) -> Path:
@@ -59,8 +56,8 @@ def get_eval_pth(output_dir: Path, gpu: str = "0", auto_eval: bool = True) -> Pa
     cmd = [
         "bash", str(TEST_SH),
         yml_path,
-        str(best_pth),
         gpu,
+        best_pth.name,
     ]
     logger.info("运行: %s", " ".join(cmd))
     result = subprocess.run(cmd, cwd=str(DEIM_ROOT), capture_output=True, text=True)

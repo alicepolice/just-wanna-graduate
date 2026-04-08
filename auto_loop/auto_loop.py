@@ -17,18 +17,23 @@ from pathlib import Path
 
 import yaml
 
-# 确保 auto_loop/ 目录在 sys.path 中
-sys.path.insert(0, str(Path(__file__).parent))
-
-import state as state_mod
-import trainer
-import evaluator
-import skill_runner
-from config import DEIM_ROOT, GET_INFO_PY, LOOP_CONFIG, LOOP_LOG, STATE_FILE
+try:
+    from . import state as state_mod
+    from . import trainer, evaluator, skill_runner
+    from .config import DEIM_ROOT, GET_INFO_PY, LOOP_CONFIG, LOOP_LOG, STATE_FILE
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).parent))
+    import state as state_mod
+    import trainer
+    import evaluator
+    import skill_runner
+    from config import DEIM_ROOT, GET_INFO_PY, LOOP_CONFIG, LOOP_LOG, STATE_FILE
 
 # ── 日志配置 ──────────────────────────────────────────────────
 def _setup_logging(log_file: Path) -> None:
     fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    root = logging.getLogger()
+    root.handlers.clear()
     handlers = [
         logging.StreamHandler(sys.stdout),
         logging.FileHandler(log_file, encoding="utf-8"),
@@ -50,6 +55,8 @@ def _load_config() -> dict:
     if LOOP_CONFIG.exists():
         with open(LOOP_CONFIG, encoding="utf-8") as f:
             user_cfg = yaml.safe_load(f) or {}
+        if not isinstance(user_cfg, dict):
+            raise ValueError(f"loop_config 必须是映射类型: {LOOP_CONFIG}")
         defaults.update(user_cfg)
     return defaults
 
@@ -128,6 +135,11 @@ def _run_one_iteration(cfg: dict, dry_run: bool) -> str:
     yml_path  = skill_result["yml_path"]
     yaml_path = skill_result["yaml_path"]
     strategy  = skill_result["strategy_name"]
+    version = skill_result.get("version", version)
+
+    s = state_mod.load()
+    s = state_mod.reserve_iteration(s, version)
+    state_mod.save(s)
 
     # ② 验证 YAML（skill 内部已验证，这里做二次确认）
     if not skill_result.get("get_info_passed"):

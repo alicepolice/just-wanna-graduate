@@ -1,8 +1,8 @@
 {
   "iteration": 1,
   "best_model": {
-    "yaml": "configs_lab/test/models/dfine-n.yaml",
-    "yml": "configs_lab/test/train/define-n-mg.yml",
+    "yaml": "configs_lab/test/models/dfine-n-v1.yaml",
+    "yml": "configs_lab/test/train/define-n-v1.yml",
     "ap": 0.0,
     "ap50": 0.0,
     "version": "v1"

@@ -43,6 +43,7 @@
     "editor.insertSpaces": true
   },
   "conventionalCommits.scopes": [
-    "config"
+    "config",
+    "auto_loop"
   ]
 }

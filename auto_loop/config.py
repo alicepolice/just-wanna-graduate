@@ -2,7 +2,11 @@
 路径配置 — 所有硬编码路径集中在这里。
 修改实验项目时只需改这个文件。
 """
+from __future__ import annotations
+
 from pathlib import Path
+
+import yaml
 
 # ── 实验项目根目录 ─────────────────────────────────────────────
 DEIM_ROOT = Path("/home/exp/DEIM-MOD-V2")
@@ -23,9 +27,10 @@ RECORD_DIR     = DEIM_ROOT / "configs_lab" / "test" / "record"
 OUTPUTS_ROOT   = DEIM_ROOT / "outputs"
 
 # ── 本工具目录 ─────────────────────────────────────────────────
-TOOL_ROOT      = Path("/home/exp/just-wanna-graduate")
-STATE_FILE     = TOOL_ROOT / "config" / "state.json"
-LOOP_CONFIG    = TOOL_ROOT / "config" / "loop_config.yml"
+TOOL_ROOT      = Path(__file__).resolve().parent.parent
+CONFIG_ROOT    = TOOL_ROOT / "config"
+STATE_FILE     = CONFIG_ROOT / "state.json"
+LOOP_CONFIG    = CONFIG_ROOT / "loop_config.yml"
 LOOP_LOG       = TOOL_ROOT / "loop.log"
 
 # ── conda 环境名（用于激活 deim 环境运行 get_info）─────────────
@@ -37,3 +42,30 @@ CONDA_ENV      = "deim"
 CLAUDE_MODEL   = "claude-sonnet-4-6"
 # thinking effort: "low" | "medium" | "high" | "" (留空则不传)
 CLAUDE_EFFORT  = "high"
+
+
+def resolve_deim_path(path_like: str | Path) -> Path:
+    """将相对 DEIM_ROOT 的路径转为绝对路径。"""
+    path = Path(path_like)
+    if path.is_absolute():
+        return path
+    return (DEIM_ROOT / path).resolve()
+
+
+def resolve_output_dir(yml_path: str | Path) -> Path:
+    """从训练 yml 读取 output_dir，并按 DEIM_ROOT 解析为绝对路径。"""
+    yml_file = resolve_deim_path(yml_path)
+    with yml_file.open(encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    if not isinstance(data, dict):
+        raise ValueError(f"YML 顶层不是映射类型: {yml_file}")
+
+    output_dir = data.get("output_dir")
+    if not output_dir:
+        raise KeyError(f"YML 缺少 output_dir: {yml_file}")
+
+    output_path = Path(output_dir)
+    if output_path.is_absolute():
+        return output_path
+    return (DEIM_ROOT / output_path).resolve()
