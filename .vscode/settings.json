@@ -1,0 +1,48 @@
+{
+  // "cmake.sourceDirectory": "/Users/moguimianju/code/DEIM/compile_module/cutlass/examples/08_turing_tensorop_gemm",
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda",
+  "python.analysis.typeCheckingMode": "off",
+  "files.exclude": {
+    "**/.git": true,
+    "**/__pycache__": true,
+    "**/.mypy_cache": true,
+    "**/.pytest_cache": true,
+    "**/runs": true,
+    "**/weights": true,
+    // "**/outputs": true,
+    // "**/logs": true,
+    "**/dist": true,
+    "**/build": true
+  },
+  "search.exclude": {
+    "**/.git": true,
+    "**/__pycache__": true,
+    "**/runs": true,
+    "**/weights": true,
+    "**/outputs": true,
+    "**/logs": true
+  },
+  "python.analysis.exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.git",
+    "**/.*",
+    "**/runs",
+    "**/weights",
+    "**/outputs",
+    "**/logs",
+    "**/dist",
+    "**/build"
+  ],
+  "python.analysis.indexing": true,
+  "python.analysis.autoImportCompletions": false,
+  "python.analysis.diagnosticMode": "openFilesOnly",
+  "[python]": {
+    "editor.tabSize": 4, // !! 修复换行为 2 个空格的问题
+    "editor.insertSpaces": true
+  },
+  "conventionalCommits.scopes": [
+    "config"
+  ]
+}

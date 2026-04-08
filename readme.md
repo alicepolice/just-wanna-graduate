@@ -1,6 +1,6 @@
 
 <p align="center">
-  <img src="template/ijwg_icon_transparent.svg" alt="I Just Wanna Graduate" width="250"/>
+  <img src="logo.svg" alt="I Just Wanna Graduate" width="250"/>
 </p>
 
 <h1 align="center">🧵 I Just Wanna Graduate</h1>
@@ -54,19 +54,78 @@
 - 📄 Paper-Aware：自动检索论文，提取核心模块
 - 🌳 多卡多方案搜索树：并行探索多条改进路径
 
-## 暴力解法
-假设手上有 4 张 4090，每一轮让 AI 基于当前最优结构生成 4 个不同的改进方案，一张卡跑一个，并行训练。跑完对比指标，涨了的留下作为下一轮起点，跑挂或变差的直接砍掉。4 个全挂？回退上一版，重新生成 4 个方案，继续迭代
+## 当前只是个人测试版本
+仍在迭代中，不建议直接使用
 
-你的 CC 反代 Claude Opus 4.6 tokens 超级消耗王
+## 工作原理
 
-## 方案交流
-欢迎对学术裁缝 Agent 感兴趣的同学一起交流，无论是技术方案、踩过的坑还是相关经验，都可以聊
+`auto_loop/` 目录实现了完整的自动化迭代闭环，由以下模块组成：
 
-📮 QQ: 1727235919
+```
+auto_loop/
+├── auto_loop.py     # 主控制器，驱动整个迭代循环
+├── config.py        # 路径配置（DEIM_ROOT、脚本路径、输出目录等）
+├── state.py         # 状态管理，读写 config/state.json 持久化迭代进度
+├── skill_runner.py  # 调用 claude -p 执行学术裁缝 Skill，解析输出
+├── trainer.py       # 训练调度，通过 train.sh + tmux 启动并监控训练
+└── evaluator.py     # 结果提取，从 eval.pth 读取 COCO 指标
 
-<p align="center">
-  <img src="template/jiaoliu.png" alt="交流" width="300"/>
-</p>
+config/
+├── loop_config.yml  # 迭代行为配置（轮数、GPU、超时等）
+└── state.json       # 迭代状态持久化（自动生成）
+```
+
+### 单轮迭代流程
+
+```
+① skill_runner  →  调用 claude -p + 学术裁缝 Skill
+                    输入：当前最优模型、已尝试策略、历史记录
+                    输出：新 YAML 配置 + 训练 YML + 改进策略名
+
+② auto_loop     →  验证 YAML（调用 get_info.py 做合法性检查）
+                    可选：等待用户确认（auto_approve=false 时）
+
+③ trainer       →  调用 train.sh，在 tmux session 中启动训练
+                    每 5 分钟轮询一次 tmux session 是否存活
+                    session 消失 → 训练结束；超时 → 强制终止
+
+④ evaluator     →  从输出目录找 eval.pth
+                    若不存在，自动运行 test.sh 生成
+                    调用 compare_models.py 提取 AP / AP50
+
+⑤ state         →  比较新 AP 与历史最优
+                    提升 → 保留，更新 best_model，iteration+1
+                    未提升 → 记录为 discarded，下轮换策略
+                    连续 max_no_improve 轮未提升 → 停止
+```
+
+### 状态持久化
+
+所有迭代状态保存在 `config/state.json`，包含：
+- `best_model`：当前最优模型的路径和指标
+- `tried_strategies`：已尝试的改进策略列表（传给 Skill 避免重复）
+- `history`：每轮实验的 AP、delta、是否保留的完整记录
+- `current_experiment`：当前正在进行的实验（用于异常恢复）
+
+进程意外中断后重启，会从 `state.json` 恢复，继续下一轮迭代。
+
+### 快速开始
+
+```bash
+# 首次使用：初始化当前最优模型信息
+./start.sh --init
+
+# 启动自动迭代（受 loop_config.yml 控制）
+./start.sh
+
+# 只生成 YAML 方案，不实际训练（用于调试）
+./start.sh --dry-run
+
+# 指定 GPU 并限制轮数
+./start.sh --gpu 0,1 --max-iter 5
+```
+
+配置项见 `config/loop_config.yml`，日志输出到 `loop.log`。
 
 ## 爆杀结尾
 

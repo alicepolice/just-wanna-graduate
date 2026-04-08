@@ -1,0 +1,23 @@
+# Auto-Experiment-Loop 配置文件
+# 修改这里来控制迭代行为
+
+# 最大迭代轮数（防止无限循环）
+max_iterations: 50
+
+# 连续多少轮未提升 AP 则停止
+max_no_improve: 5
+
+# 是否自动批准每轮方案（true = 全自动；false = 每轮需要用户确认）
+auto_approve: true
+
+# 训练使用的 GPU（单卡: "0"，多卡: "0,1"）
+gpu: "0"
+
+# 训练完成检测轮询间隔（秒），默认 5 分钟
+poll_interval_sec: 300
+
+# 训练超时时间（小时），超时后强制终止
+timeout_hours: 24.0
+
+# 训练完成后是否自动运行 eval（若 eval.pth 不存在）
+auto_eval: true
