@@ -1,18 +1,16 @@
 """
-Skill 调用器 — 构造 prompt，调用 claude -p 执行学术裁缝 skill，解析输出。
-
-claude -p 调用约定：
-  - 工作目录：DEIM_ROOT（让 claude 能直接读写项目文件）
-  - system prompt：学术裁缝 skill 文件内容
-  - user prompt：包含当前状态的结构化指令
-  - 输出格式：要求 claude 在最后输出一个 JSON 摘要块，便于解析
+Skill 调用器 — 构造 prompt，调用 claude-agent-sdk 执行学术裁缝 skill，解析输出。
 """
+import asyncio
 import json
 import logging
 import re
-import subprocess
+import sys
 import textwrap
 from pathlib import Path
+
+from claude_agent_sdk import query, ClaudeAgentOptions
+from claude_agent_sdk.types import AssistantMessage, StreamEvent, ResultMessage, TextBlock
 
 from config import DEIM_ROOT, SKILL_FILE
 from config import CLAUDE_MODEL, CLAUDE_EFFORT
@@ -101,43 +99,88 @@ def run(state: dict, next_version: str, max_retries: int = 2) -> dict:
 
 
 def _call_claude(system_prompt: str, user_prompt: str) -> dict | None:
-    """调用 claude -p，返回解析后的 JSON 摘要，失败返回 None。"""
-    cmd = [
-        "claude",
-        "--print",
-        "--permission-mode", "auto",
-        "--system-prompt", system_prompt,
-    ]
-    if CLAUDE_MODEL:
-        cmd += ["--model", CLAUDE_MODEL]
-    if CLAUDE_EFFORT:
-        cmd += ["--effort", CLAUDE_EFFORT]
-    cmd.append(user_prompt)
-    logger.debug("CMD: claude --print --permission-mode auto --system-prompt <skill> <prompt>")
+    """调用 claude-agent-sdk，返回解析后的 JSON 摘要，失败返回 None。"""
+    return asyncio.run(_call_claude_async(system_prompt, user_prompt))
+
+
+async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | None:
+    options = ClaudeAgentOptions(
+        system_prompt=system_prompt,
+        cwd=str(DEIM_ROOT),
+        permission_mode="auto",
+        model=CLAUDE_MODEL or None,
+        effort=CLAUDE_EFFORT or None,
+        include_partial_messages=True,
+    )
+
+    full_text_parts: list[str] = []
+    got_first_token = False
+    pending_tools: dict[str, dict] = {}  # block index -> {name, input_buf}
 
     try:
-        proc = subprocess.Popen(
-            cmd,
-            cwd=str(DEIM_ROOT),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-        )
-        output_lines = []
-        for line in proc.stdout:
-            print(line, end="", flush=True)
-            output_lines.append(line)
-        proc.wait(timeout=1800)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        logger.error("claude -p 超时（30 分钟）")
+        async for msg in query(prompt=user_prompt, options=options):
+            if isinstance(msg, StreamEvent):
+                event = msg.event
+                etype = event.get("type", "")
+
+                if etype == "content_block_delta":
+                    delta = event.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        text = delta.get("text", "")
+                        if text and not got_first_token:
+                            got_first_token = True
+                            logger.info("首个 token 到达")
+                        sys.stdout.write(text)
+                        sys.stdout.flush()
+                    elif delta.get("type") == "input_json_delta":
+                        idx = str(event.get("index", ""))
+                        if idx in pending_tools:
+                            pending_tools[idx]["input_buf"] += delta.get("partial_json", "")
+
+                elif etype == "content_block_start":
+                    block = event.get("content_block", {})
+                    if block.get("type") == "tool_use":
+                        idx = str(event.get("index", ""))
+                        pending_tools[idx] = {"name": block.get("name", ""), "input_buf": ""}
+
+                elif etype == "content_block_stop":
+                    idx = str(event.get("index", ""))
+                    if idx in pending_tools:
+                        info = pending_tools.pop(idx)
+                        name = info["name"]
+                        try:
+                            inp = json.loads(info["input_buf"]) if info["input_buf"] else {}
+                        except json.JSONDecodeError:
+                            inp = {}
+                        if name in ("Read", "Edit", "Write"):
+                            detail = inp.get("file_path", inp.get("path", ""))
+                        elif name == "Bash":
+                            detail = inp.get("command", "")[:120]
+                        elif name == "Glob":
+                            detail = inp.get("pattern", "")
+                        elif name == "Grep":
+                            detail = f"{inp.get('pattern','')} in {inp.get('path','')}"
+                        else:
+                            detail = str(inp)[:120]
+                        sys.stdout.write(f"\n[tool:{name}] {detail}\n")
+                        sys.stdout.flush()
+
+            elif isinstance(msg, AssistantMessage):
+                for block in msg.content:
+                    if isinstance(block, TextBlock):
+                        full_text_parts.append(block.text)
+
+            elif isinstance(msg, ResultMessage):
+                logger.info("claude 完成: turns=%d cost=$%.4f", msg.num_turns, msg.total_cost_usd or 0)
+
+    except Exception as e:
+        logger.error("claude-agent-sdk 调用失败: %s", e)
         return None
 
-    if proc.returncode != 0:
-        logger.error("claude -p 退出码 %d", proc.returncode)
-        return None
+    sys.stdout.write("\n")
+    sys.stdout.flush()
 
-    output = "".join(output_lines)
+    output = "\n".join(full_text_parts)
     logger.debug("claude 输出长度: %d 字符", len(output))
     return _parse_output(output)
 
