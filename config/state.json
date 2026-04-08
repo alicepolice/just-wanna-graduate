@@ -1,11 +1,11 @@
 {
-  "iteration": 13,
+  "iteration": 1,
   "best_model": {
-    "yaml": "configs_lab/models/n_mm/dfine-n-mm-v13.yaml",
-    "yml": "configs_lab/train/n_mm/deim_dfine_n_mm_FD_v13.yml",
+    "yaml": "configs_lab/test/models/dfine-n.yaml",
+    "yml": "configs_lab/test/train/define-n-mg.yml",
     "ap": 0.0,
     "ap50": 0.0,
-    "version": "v13"
+    "version": "v1"
   },
   "tried_strategies": [],
   "history": [],

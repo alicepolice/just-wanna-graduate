@@ -14,7 +14,7 @@ COMPARE_PY     = DEIM_ROOT / "scripts" / "compare_models.py"
 TEST_SH        = DEIM_ROOT / "scripts" / "test.sh"
 
 # ── Skill 文件 ─────────────────────────────────────────────────
-SKILL_FILE     = DEIM_ROOT / "prompt" / "skill-only-net-full" / "缝合任务.md"
+SKILL_FILE     = DEIM_ROOT / ".claude" / "skills" / "缝合任务" / "SKILL.md"
 
 # ── 实验记录目录 ───────────────────────────────────────────────
 RECORD_DIR     = DEIM_ROOT / "prompt" / "record"
