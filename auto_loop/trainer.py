@@ -37,24 +37,43 @@ def start(yml_path: str, gpu: str = "0") -> str:
     train.sh 会自动创建 tmux session，这里只需调用它。
     """
     base_session = _session_name(yml_path)
-    session = _pick_session_name(base_session, _list_sessions())
+    before = _list_sessions()
     cmd = ["bash", str(TRAIN_SH), yml_path, gpu]
-    logger.info("启动训练: %s (GPU=%s, session=%s)", yml_path, gpu, session)
-    # 用 Popen 非阻塞启动；train.sh 内部会 detach 到 tmux
-    subprocess.Popen(
+    logger.info("启动训练: %s (GPU=%s)", yml_path, gpu)
+    # train.sh 内部会 detach 到 tmux，等它自身退出即可
+    proc = subprocess.Popen(
         cmd,
         cwd=str(DEIM_ROOT),
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    # 等待 tmux session 出现（最多 30 秒）
+    # 等待 tmux session 出现（最多 30 秒），通过 diff 实际检测新 session
+    session = None
     for _ in range(30):
         time.sleep(1)
-        if _session_exists(session):
-            logger.info("tmux session '%s' 已创建", session)
-            return session
-    logger.warning("等待 tmux session '%s' 超时，可能已快速完成或失败", session)
-    return session
+        after = _list_sessions()
+        new_sessions = after - before
+        # 优先匹配以 base_session 开头的新 session
+        for s in sorted(new_sessions):
+            if s == base_session or s.startswith(f"{base_session}-"):
+                session = s
+                break
+        if session:
+            break
+    # 回收 train.sh 自身的进程（它 detach 后应很快退出）
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        logger.warning("train.sh 进程未退出，强制终止")
+        proc.kill()
+        proc.wait()
+    if session:
+        logger.info("tmux session '%s' 已创建", session)
+        return session
+    # fallback: 用预测名
+    fallback = _pick_session_name(base_session, _list_sessions())
+    logger.warning("未检测到新 tmux session，使用预测名 '%s'", fallback)
+    return fallback
 
 
 def _session_exists(session: str) -> bool:

@@ -160,13 +160,13 @@ def run(state: dict, next_version: str, max_retries: int = 2) -> dict:
     skill_content = SKILL_FILE.read_text(encoding="utf-8")
     user_prompt = _build_user_prompt(state, next_version)
 
-    for attempt in range(1, max_retries + 2):
-        logger.info("调用 claude -p (第 %d 次)...", attempt)
+    for attempt in range(max_retries + 1):
+        logger.info("调用 claude -p (第 %d 次)...", attempt + 1)
         result = _call_claude(skill_content, user_prompt)
         if result is not None:
             return result
-        if attempt <= max_retries:
-            logger.warning("解析失败，重试 (%d/%d)...", attempt, max_retries)
+        if attempt < max_retries:
+            logger.warning("解析失败，重试 (%d/%d)...", attempt + 1, max_retries)
 
     raise RuntimeError(f"claude -p 调用失败或输出无法解析（已重试 {max_retries} 次）")
 

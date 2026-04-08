@@ -4,12 +4,13 @@
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import yaml
 
 # ── 实验项目根目录 ─────────────────────────────────────────────
-DEIM_ROOT = Path("/home/exp/DEIM-MOD-V2")
+DEIM_ROOT = Path(os.environ.get("DEIM_ROOT", "/home/exp/DEIM-MOD-V2"))
 
 # ── 关键脚本 ───────────────────────────────────────────────────
 TRAIN_SH       = DEIM_ROOT / "scripts" / "train.sh"

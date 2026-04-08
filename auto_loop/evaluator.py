@@ -72,7 +72,7 @@ def get_eval_pth(output_dir: Path, gpu: str = "0", auto_eval: bool = True) -> Pa
 
 def extract_metrics(eval_pth: Path) -> dict:
     """从 eval.pth 提取 COCO 指标（摘自 DEIM-MOD-V2/scripts/compare_models.py）。"""
-    data      = torch.load(str(eval_pth), weights_only=False)
+    data      = torch.load(str(eval_pth), weights_only=False, map_location="cpu")
     precision = data["precision"]   # [T, R, K, A, M]
     recall    = data["recall"]      # [T, K, A, M]
     params    = data["params"]
