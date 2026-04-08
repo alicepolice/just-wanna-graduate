@@ -62,13 +62,12 @@ just-wanna-graduate/
 ├── loop.log              # 运行日志
 ├── auto_loop/            # 核心代码
 │   ├── auto_loop.py      # 主控制器，驱动整个迭代循环
-│   ├── config.py         # 集中路径配置（DEIM_ROOT、脚本路径、Claude 模型等）
+│   ├── config.py         # 集中配置（路径、迭代行为、Claude 模型等）
 │   ├── state.py          # 状态管理，读写 state.json 持久化迭代进度
 │   ├── skill_runner.py   # 通过 claude-agent-sdk 调用学术裁缝 Skill，解析输出
 │   ├── trainer.py        # 训练调度，通过 train.sh + tmux 启动并监控训练
 │   └── evaluator.py      # 结果提取，从 eval.pth 读取 COCO 指标（AP / AP50）
 ├── config/
-│   ├── loop_config.yml   # 迭代行为配置（轮数、GPU、超时等）
 │   └── state.json        # 迭代状态持久化（自动生成）
 └── template/             # 需求文档与参考资料
 ```
@@ -131,7 +130,7 @@ just-wanna-graduate/
 # 首次使用：交互式初始化当前最优模型信息
 ./start.sh --init
 
-# 启动自动迭代（受 loop_config.yml 控制）
+# 启动自动迭代（受 config.py 控制）
 ./start.sh
 
 # 只生成 YAML 方案，不实际训练（用于调试 Skill 输出）
@@ -143,17 +142,17 @@ just-wanna-graduate/
 
 ### 配置项
 
-编辑 `config/loop_config.yml`：
+编辑 `auto_loop/config.py`：
 
 | 配置项 | 默认值 | 说明 |
 |--------|--------|------|
-| `max_iterations` | 50 | 最大迭代轮数 |
-| `max_no_improve` | 5 | 连续未提升轮数上限，达到后自动停止 |
-| `auto_approve` | true | 是否自动批准方案（false 时每轮需手动确认） |
-| `gpu` | "0" | GPU 编号，多卡用逗号分隔 |
-| `poll_interval_sec` | 300 | 训练完成检测轮询间隔（秒） |
-| `timeout_hours` | 24.0 | 单次训练超时时间（小时） |
-| `auto_eval` | true | 训练后自动运行评估 |
+| `MAX_ITERATIONS` | 50 | 最大迭代轮数 |
+| `MAX_NO_IMPROVE` | 5 | 连续未提升轮数上限，达到后自动停止 |
+| `AUTO_APPROVE` | True | 是否自动批准方案（False 时每轮需手动确认） |
+| `GPU` | "0" | GPU 编号，多卡用逗号分隔 |
+| `POLL_INTERVAL_SEC` | 10 | 训练完成检测轮询间隔（秒） |
+| `TIMEOUT_HOURS` | 24.0 | 单次训练超时时间（小时） |
+| `AUTO_EVAL` | True | 训练后自动运行评估 |
 
 日志输出到 `loop.log`。
 

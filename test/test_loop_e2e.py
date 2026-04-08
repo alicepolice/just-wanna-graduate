@@ -123,7 +123,6 @@ def sandbox(tmp_path, monkeypatch):
     # 重定向 config 中的路径
     monkeypatch.setattr(config, "DEIM_ROOT", tmp_deim)
     monkeypatch.setattr(config, "STATE_FILE", config_dir / "state.json")
-    monkeypatch.setattr(config, "LOOP_CONFIG", config_dir / "loop_config.yml")
     monkeypatch.setattr(config, "OUTPUTS_ROOT", tmp_deim / "outputs")
 
     # 初始化 state

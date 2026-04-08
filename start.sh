@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # start.sh — 启动 Auto-Experiment-Loop
 # 用法:
-#   ./start.sh                  # 无限循环（受 loop_config.yml 中 max_iterations 限制）
+#   ./start.sh                  # 无限循环（受 config.py 中 MAX_ITERATIONS 限制）
 #   ./start.sh --max-iter 3     # 最多跑 3 轮
 #   ./start.sh --dry-run        # 只生成 YAML，不训练
 #   ./start.sh --init           # 初始化 state.json（交互式）

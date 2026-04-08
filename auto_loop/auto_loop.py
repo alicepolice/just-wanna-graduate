@@ -15,19 +15,25 @@ import sys
 import time
 from pathlib import Path
 
-import yaml
-
 try:
     from . import state as state_mod
     from . import trainer, evaluator, skill_runner
-    from .config import DEIM_ROOT, GET_INFO_PY, LOOP_CONFIG, LOOP_LOG, STATE_FILE
+    from .config import (
+        DEIM_ROOT, GET_INFO_PY, LOOP_LOG, STATE_FILE,
+        MAX_ITERATIONS, MAX_NO_IMPROVE, AUTO_APPROVE, GPU,
+        POLL_INTERVAL_SEC, TIMEOUT_HOURS, AUTO_EVAL,
+    )
 except ImportError:
     sys.path.insert(0, str(Path(__file__).parent))
     import state as state_mod
     import trainer
     import evaluator
     import skill_runner
-    from config import DEIM_ROOT, GET_INFO_PY, LOOP_CONFIG, LOOP_LOG, STATE_FILE
+    from config import (
+        DEIM_ROOT, GET_INFO_PY, LOOP_LOG, STATE_FILE,
+        MAX_ITERATIONS, MAX_NO_IMPROVE, AUTO_APPROVE, GPU,
+        POLL_INTERVAL_SEC, TIMEOUT_HOURS, AUTO_EVAL,
+    )
 
 # ── 日志配置 ──────────────────────────────────────────────────
 def _setup_logging(log_file: Path) -> None:
@@ -43,22 +49,15 @@ def _setup_logging(log_file: Path) -> None:
 
 # ── 配置加载 ──────────────────────────────────────────────────
 def _load_config() -> dict:
-    defaults = {
-        "max_iterations": 50,
-        "max_no_improve": 5,
-        "auto_approve": True,
-        "gpu": "0",
-        "poll_interval_sec": 300,
-        "timeout_hours": 24.0,
-        "auto_eval": True,
+    return {
+        "max_iterations": MAX_ITERATIONS,
+        "max_no_improve": MAX_NO_IMPROVE,
+        "auto_approve": AUTO_APPROVE,
+        "gpu": GPU,
+        "poll_interval_sec": POLL_INTERVAL_SEC,
+        "timeout_hours": TIMEOUT_HOURS,
+        "auto_eval": AUTO_EVAL,
     }
-    if LOOP_CONFIG.exists():
-        with open(LOOP_CONFIG, encoding="utf-8") as f:
-            user_cfg = yaml.safe_load(f) or {}
-        if not isinstance(user_cfg, dict):
-            raise ValueError(f"loop_config 必须是映射类型: {LOOP_CONFIG}")
-        defaults.update(user_cfg)
-    return defaults
 
 
 # ── 验证 YAML ─────────────────────────────────────────────────

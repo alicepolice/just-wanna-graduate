@@ -29,10 +29,17 @@ OUTPUTS_ROOT   = DEIM_ROOT / "outputs"
 
 # ── 本工具目录 ─────────────────────────────────────────────────
 TOOL_ROOT      = Path(__file__).resolve().parent.parent
-CONFIG_ROOT    = TOOL_ROOT / "config"
-STATE_FILE     = CONFIG_ROOT / "state.json"
-LOOP_CONFIG    = CONFIG_ROOT / "loop_config.yml"
+STATE_FILE     = TOOL_ROOT / "config" / "state.json"
 LOOP_LOG       = TOOL_ROOT / "loop.log"
+
+# ── 迭代行为配置（原 loop_config.yml）────────────────────────────
+MAX_ITERATIONS     = 50       # 最大迭代轮数（防止无限循环）
+MAX_NO_IMPROVE     = 5        # 连续多少轮未提升 AP 则停止
+AUTO_APPROVE       = True     # 是否自动批准每轮方案（False = 每轮需用户确认）
+GPU                = "0"      # 训练使用的 GPU（单卡: "0"，多卡: "0,1"）
+POLL_INTERVAL_SEC  = 10       # 训练完成检测轮询间隔（秒）
+TIMEOUT_HOURS      = 24.0     # 训练超时时间（小时），超时后强制终止
+AUTO_EVAL          = True     # 训练完成后是否自动运行 eval
 
 # ── conda 环境名（用于激活 deim 环境运行 get_info）─────────────
 CONDA_ENV      = "deim"
