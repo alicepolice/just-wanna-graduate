@@ -34,46 +34,20 @@ def _pick_session_name(base_session: str, existing_sessions: set[str]) -> str:
 def start(yml_path: str, gpu: str = "0") -> str:
     """
     启动训练，返回 tmux session 名。
-    train.sh 会自动创建 tmux session，这里只需调用它。
+    由 trainer 自己创建 detached tmux session，在里面运行 train.sh。
+    train.sh 检测到已在 tmux 中会跳过自己的 tmux 创建，直接执行 torchrun。
+    训练完命令退出，session 自动消失。
     """
     base_session = _session_name(yml_path)
-    before = _list_sessions()
-    cmd = ["bash", str(TRAIN_SH), yml_path, gpu]
-    logger.info("启动训练: %s (GPU=%s)", yml_path, gpu)
-    # train.sh 内部会 detach 到 tmux，等它自身退出即可
-    proc = subprocess.Popen(
-        cmd,
-        cwd=str(DEIM_ROOT),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    # 等待 tmux session 出现（最多 30 秒），通过 diff 实际检测新 session
-    session = None
-    for _ in range(30):
-        time.sleep(1)
-        after = _list_sessions()
-        new_sessions = after - before
-        # 优先匹配以 base_session 开头的新 session
-        for s in sorted(new_sessions):
-            if s == base_session or s.startswith(f"{base_session}-"):
-                session = s
-                break
-        if session:
-            break
-    # 回收 train.sh 自身的进程（它 detach 后应很快退出）
-    try:
-        proc.wait(timeout=10)
-    except subprocess.TimeoutExpired:
-        logger.warning("train.sh 进程未退出，强制终止")
-        proc.kill()
-        proc.wait()
-    if session:
-        logger.info("tmux session '%s' 已创建", session)
-        return session
-    # fallback: 用预测名
-    fallback = _pick_session_name(base_session, _list_sessions())
-    logger.warning("未检测到新 tmux session，使用预测名 '%s'", fallback)
-    return fallback
+    session = _pick_session_name(base_session, _list_sessions())
+    cmd = [
+        "tmux", "new-session", "-d", "-s", session, "--",
+        "bash", str(TRAIN_SH), yml_path, gpu,
+    ]
+    logger.info("启动训练: %s (GPU=%s, session=%s)", yml_path, gpu, session)
+    subprocess.run(cmd, cwd=str(DEIM_ROOT), check=True)
+    logger.info("tmux session '%s' 已创建", session)
+    return session
 
 
 def _session_exists(session: str) -> bool:
