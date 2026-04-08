@@ -3,19 +3,23 @@
   <img src="logo.svg" alt="I Just Wanna Graduate" width="250"/>
 </p>
 
-<h1 align="center">🧵 I Just Wanna Graduate [for DETR]</h1>
+<h1 align="center">🧵 Just Wanna Graduate</h1>
 
 <p align="center">
   <em>学术裁缝 Agent —— 让 AI 替你缝，你只管毕业</em>
 </p>
 
 <p align="center">
-  🚧 计划于暑假开发，优先兼容"目标检测"项目，先占个坑
+  专为 <strong>DETR / D-FINE / DEIM</strong> 系列目标检测框架设计的自动化实验迭代 Agent
+</p>
+
+<p align="center">
+  🚧 项目仍在迭代中，暂不建议直接使用
 </p>
 
 ## 为什么学术裁缝可以被 AI 替代？
 
-大部分实验改进的真实工作流：
+DETR 系列（DETR → DAB-DETR → DN-DETR → DINO → D-FINE → DEIM）是当前目标检测的主流方向，结构清晰、模块化程度高，非常适合"搭积木式"改进。大部分实验改进的真实工作流：
 
 ```
 学习基础 → 达到前置条件，搭好实验平台（基准模型 + 模块库 + 网络配置），可参考 YOLO Ultra
@@ -55,8 +59,6 @@
 - 🌳 多卡多方案搜索树：并行探索多条改进路径
 
 ## 当前状态
-
-> 项目仍在迭代中，暂不建议直接使用。
 
 **近期计划：**
 
