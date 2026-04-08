@@ -6,6 +6,10 @@
 #   ./start.sh --dry-run        # 只生成 YAML，不训练
 #   ./start.sh --init           # 初始化 state.json（交互式）
 #   ./start.sh --gpu 0,1        # 指定 GPU
+#   ./start.sh --max-iter 5 --gpu 0
+
+source /root/miniconda3/etc/profile.d/conda.sh
+conda activate deim
 
 set -euo pipefail
 

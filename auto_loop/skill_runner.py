@@ -105,15 +105,14 @@ def _call_claude(system_prompt: str, user_prompt: str) -> dict | None:
     cmd = [
         "claude",
         "--print",
-        "--dangerously-skip-permissions",
         "--system-prompt", system_prompt,
     ]
     if CLAUDE_MODEL:
         cmd += ["--model", CLAUDE_MODEL]
     if CLAUDE_EFFORT:
-        cmd += ["--thinking-effort", CLAUDE_EFFORT]
+        cmd += ["--effort", CLAUDE_EFFORT]
     cmd.append(user_prompt)
-    logger.debug("CMD: claude --print --dangerously-skip-permissions --system-prompt <skill> <prompt>")
+    logger.debug("CMD: claude --print --system-prompt <skill> <prompt>")
 
     try:
         proc = subprocess.run(
