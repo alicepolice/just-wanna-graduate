@@ -374,32 +374,42 @@ def _format_tool_detail(name: str, inp: dict) -> str:
         return str(inp)
 
 
-# ── rich console（仅终端输出用）──────────────────────────────────
-try:
-    from rich.console import Console as _RichConsole
-    from rich.text import Text as _RichText
-    _rich_console = _RichConsole(highlight=False)
-    _HAS_RICH = True
-except ImportError:
-    _HAS_RICH = False
+# ── ANSI 颜色（终端流式输出用，无缓冲、无 markup 解析问题）────────
+# rich.Console.print 有内部缓冲，且会把 [...] 当 markup 解析，
+# 不适合逐 token 的流式场景；这里直接用 ANSI 转义码。
+_ANSI_RESET  = "\033[0m"
+_ANSI_BOLD   = "\033[1m"
+_ANSI_DIM    = "\033[2m"
 
-# tool 名 → 颜色映射
-_TOOL_COLORS = {
-    "Read":      "cyan",
-    "Write":     "green",
-    "Edit":      "yellow",
-    "Bash":      "magenta",
-    "Glob":      "blue",
-    "Grep":      "blue",
-    "TodoWrite": "dark_orange",
-    "Agent":     "bright_red",
-    "Skill":     "bright_magenta",
+# 正文（claude 思考内容）：亮白色
+_ANSI_TEXT   = "\033[97m"
+
+# 分隔线：青色
+_ANSI_SEP    = "\033[36m"
+_ANSI_SEP_TS = "\033[1;36m"   # 时间戳加粗
+
+# tool 名 → ANSI 前景色
+_TOOL_ANSI: dict[str, str] = {
+    "Read":      "\033[96m",    # 亮青
+    "Write":     "\033[92m",    # 亮绿
+    "Edit":      "\033[93m",    # 亮黄
+    "Bash":      "\033[95m",    # 亮品红
+    "Glob":      "\033[94m",    # 亮蓝
+    "Grep":      "\033[94m",    # 亮蓝
+    "TodoWrite": "\033[33m",    # 橙黄
+    "Agent":     "\033[91m",    # 亮红
+    "Skill":     "\033[35m",    # 品红
 }
-_TOOL_DEFAULT_COLOR = "bright_black"
+_ANSI_TOOL_DEFAULT = "\033[90m"  # 暗灰（未知 tool）
+
+
+def _ansi(code: str, text: str) -> str:
+    """用 ANSI 代码包裹文本，末尾自动 reset。"""
+    return f"{code}{text}{_ANSI_RESET}"
 
 
 def _stream_write(text: str) -> None:
-    """写到终端（纯文本）+ loop.log，用于非 tool 的结构化输出（分隔线等）。"""
+    """写到终端（纯文本）+ loop.log，用于结构化输出（末尾换行等）。"""
     sys.stdout.write(text)
     try:
         sys.stdout.flush()
@@ -409,62 +419,63 @@ def _stream_write(text: str) -> None:
 
 
 def _stream_write_text(text: str) -> None:
-    """将 claude 流式文字写到终端（rich 染色）+ loop.log（纯文本）。"""
+    """将 claude 流式文字逐 token 写到终端（亮白色）+ loop.log（纯文本）。
+    必须用 sys.stdout.write + flush，不能用 rich.Console.print（有缓冲 + markup 解析）。
+    """
     _log_file_write(text)
-    if _HAS_RICH and text:
-        # 用 bright_white 渲染正文，保持可读但有别于 logging 的白色
-        _rich_console.print(text, end="", style="bright_white")
-    else:
-        sys.stdout.write(text)
-        try:
-            sys.stdout.flush()
-        except Exception:
-            pass
+    if not text:
+        return
+    sys.stdout.write(f"{_ANSI_TEXT}{text}{_ANSI_RESET}")
+    try:
+        sys.stdout.flush()
+    except Exception:
+        pass
 
 
 def _stream_write_separator() -> None:
     """输出带时间戳的分隔线（终端彩色 + log 纯文本）。"""
-    sep_plain = _timestamp_separator()
+    now = datetime.now().strftime("%H:%M:%S")
+    sep_plain = f"\n{'─' * 20} [{now}] {'─' * 20}\n"
     _log_file_write(sep_plain)
-    if _HAS_RICH:
-        now = datetime.now().strftime("%H:%M:%S")
-        line = _RichText()
-        line.append("\n")
-        line.append("─" * 20, style="dim cyan")
-        line.append(f" [{now}] ", style="bold cyan")
-        line.append("─" * 20, style="dim cyan")
-        line.append("\n")
-        _rich_console.print(line, end="")
-    else:
-        sys.stdout.write(sep_plain)
+    sep_color = (
+        f"\n"
+        f"{_ANSI_SEP}{'─' * 20}{_ANSI_RESET}"
+        f" {_ANSI_SEP_TS}[{now}]{_ANSI_RESET} "
+        f"{_ANSI_SEP}{'─' * 20}{_ANSI_RESET}"
+        f"\n"
+    )
+    sys.stdout.write(sep_color)
+    try:
         sys.stdout.flush()
+    except Exception:
+        pass
 
 
 def _stream_write_tool(name: str, detail: str) -> None:
-    """将 tool 调用行以彩色格式写到终端，纯文本写到 log。"""
+    """将 tool 调用行以彩色格式写到终端（ANSI），纯文本写到 log。"""
     plain = f"\n[tool:{name}] {detail}\n"
     _log_file_write(plain)
 
-    if _HAS_RICH:
-        color = _TOOL_COLORS.get(name, _TOOL_DEFAULT_COLOR)
-        # 第一行：tool 标签用颜色 + bold，detail 首行同色
-        detail_lines = detail.splitlines()
-        first_line = detail_lines[0] if detail_lines else ""
-        rest_lines = detail_lines[1:]
+    color = _TOOL_ANSI.get(name, _ANSI_TOOL_DEFAULT)
+    detail_lines = detail.splitlines()
+    first_line = detail_lines[0] if detail_lines else ""
+    rest_lines = detail_lines[1:]
 
-        line = _RichText()
-        line.append("\n")
-        line.append(f"[tool:{name}]", style=f"bold {color}")
-        line.append(" ")
-        line.append(first_line, style=color)
-        for extra in rest_lines:
-            line.append("\n")
-            line.append(f"  {extra}", style=f"dim {color}")
-        line.append("\n")
-        _rich_console.print(line, end="")
-    else:
-        sys.stdout.write(plain)
+    out_parts = [
+        "\n",
+        f"{_ANSI_BOLD}{color}[tool:{name}]{_ANSI_RESET}",
+        " ",
+        f"{color}{first_line}{_ANSI_RESET}",
+    ]
+    for extra in rest_lines:
+        out_parts.append(f"\n{_ANSI_DIM}{color}  {extra}{_ANSI_RESET}")
+    out_parts.append("\n")
+
+    sys.stdout.write("".join(out_parts))
+    try:
         sys.stdout.flush()
+    except Exception:
+        pass
 
 
 def _log_file_write(text: str) -> None:
@@ -481,6 +492,6 @@ def _log_file_write(text: str) -> None:
 
 
 def _timestamp_separator() -> str:
-    """生成带时间戳的分隔线，用于区分 claude 流式输出的不同段落。"""
+    """生成带时间戳的纯文本分隔线（供 log 使用）。"""
     now = datetime.now().strftime("%H:%M:%S")
     return f"\n{'─' * 20} [{now}] {'─' * 20}\n"
