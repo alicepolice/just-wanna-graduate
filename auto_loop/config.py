@@ -49,7 +49,7 @@ CONDA_ENV      = "deim"
 # 可选: "claude-opus-4-6", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"
 CLAUDE_MODEL   = "claude-sonnet-4-6"
 # thinking effort: "low" | "medium" | "high" | "" (留空则不传)
-CLAUDE_EFFORT  = "high"
+CLAUDE_EFFORT  = "medium"
 
 
 def resolve_deim_path(path_like: str | Path) -> Path:
