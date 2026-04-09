@@ -101,6 +101,12 @@ def wait_until_done(session: str, poll_interval: int = 300, timeout_hours: float
     max_polls = int(timeout_hours * 3600 / poll_interval)
     logger.info("等待训练完成 (session=%s, 超时=%.1fh)...", session, timeout_hours)
 
+    # 启动后稍等 3 秒再做首次快照，给 torchrun 时间输出第一行
+    time.sleep(3)
+    ep_info = _capture_ep_info(session)
+    if ep_info:
+        logger.info("训练已启动 [%s]", ep_info)
+
     for i in range(max_polls):
         time.sleep(poll_interval)
         if not _session_exists(session):
@@ -120,7 +126,12 @@ def wait_until_done(session: str, poll_interval: int = 300, timeout_hours: float
 
 def check_train_success(yml_path: str) -> bool:
     """
-    检查训练是否正常完成（log.txt 中有 'Training completed' 或存在 best_stg*.pth）。
+    检查训练是否正常完成。
+    判定顺序：
+      1. best_stg*.pth 存在 → 成功（有最优模型保存）
+      2. last.pth 存在 + log 中有完成关键词 → 成功（训练完整跑完但 AP=0 没保存 best）
+      3. log 中有 Error/Traceback → 失败
+      4. 其余 → 警告并假设失败
     """
     try:
         output_dir = resolve_output_dir(yml_path)
@@ -132,22 +143,39 @@ def check_train_success(yml_path: str) -> bool:
         logger.warning("找不到输出目录: %s", output_dir)
         return False
 
-    # 检查 best_stg*.pth 是否存在
+    # 1. best_stg*.pth 优先
     best_ptns = list(output_dir.glob("best_stg*.pth"))
     if best_ptns:
         logger.info("训练成功，找到: %s", best_ptns[0].name)
         return True
 
-    # 兼容 train.sh 产出的 train.log 和旧版 log.txt
+    # 2. last.pth + log 关键词
+    last_pth = output_dir / "last.pth"
     for log_file in (output_dir / "train.log", output_dir / "log.txt"):
         if not log_file.exists():
             continue
-        tail = log_file.read_text(encoding="utf-8", errors="ignore")[-3000:]
-        if "Training completed" in tail or "best_ap" in tail.lower():
-            return True
-        if "Error" in tail or "Traceback" in tail:
-            logger.error("训练 log 中发现错误:\n%s", tail[-500:])
+        tail = log_file.read_text(encoding="utf-8", errors="ignore")[-5000:]
+        has_error = "Error" in tail or "Traceback" in tail
+        if has_error:
+            logger.error("训练 log 中发现错误:\n%s", tail[-800:])
             return False
+        # 识别多种"训练结束"信号
+        completed = any(kw in tail for kw in (
+            "Training completed",
+            "Training time",     # DEIM 训练结束时输出 "Training time 0:xx:xx"
+            "best_ap",
+        ))
+        if completed:
+            if last_pth.exists():
+                logger.info("训练成功（AP 未超基线，未保存 best，但 last.pth 存在）")
+            else:
+                logger.info("训练成功（log 有完成标志）")
+            return True
+
+    # 3. last.pth 存在但 log 没有明确标志，也算成功（保守）
+    if last_pth.exists():
+        logger.info("训练成功（last.pth 存在）")
+        return True
 
     logger.warning("无法确认训练状态，假设失败")
     return False

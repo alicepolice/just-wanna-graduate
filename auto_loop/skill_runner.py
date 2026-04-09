@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 # claude 输出中 JSON 摘要的标记
 _JSON_MARKER = "AUTO_LOOP_RESULT"
 
+# 累计 cost 追踪（跨轮次累加）
+_total_cost_usd: float = 0.0
+
 
 def _build_user_prompt(state: dict, next_version: str) -> str:
     best = state.get("best_model") or {}
@@ -237,10 +240,10 @@ async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | Non
                             logger.info("首个 token 到达")
                         # 在 tool 调用结束后的首段文本前插入时间戳分隔线
                         if text and need_separator:
-                            _stream_write(_timestamp_separator())
+                            _stream_write_separator()
                             need_separator = False
                         stream_text_parts.append(text)
-                        _stream_write(text)
+                        _stream_write_text(text)
                     elif delta.get("type") == "input_json_delta":
                         idx = str(event.get("index", ""))
                         if idx in pending_tools:
@@ -261,17 +264,8 @@ async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | Non
                             inp = json.loads(info["input_buf"]) if info["input_buf"] else {}
                         except json.JSONDecodeError:
                             inp = {}
-                        if name in ("Read", "Edit", "Write"):
-                            detail = inp.get("file_path", inp.get("path", ""))
-                        elif name == "Bash":
-                            detail = inp.get("command", "")[:120]
-                        elif name == "Glob":
-                            detail = inp.get("pattern", "")
-                        elif name == "Grep":
-                            detail = f"{inp.get('pattern', '')} in {inp.get('path', '')}"
-                        else:
-                            detail = str(inp)[:120]
-                        _stream_write(f"\n[tool:{name}] {detail}\n")
+                        detail = _format_tool_detail(name, inp)
+                        _stream_write_tool(name, detail)
                         need_separator = True
 
             elif isinstance(msg, AssistantMessage):
@@ -280,7 +274,13 @@ async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | Non
                         full_text_parts.append(block.text)
 
             elif isinstance(msg, ResultMessage):
-                logger.info("claude 完成: turns=%d cost=$%.4f", msg.num_turns, msg.total_cost_usd or 0)
+                cost = msg.total_cost_usd or 0
+                global _total_cost_usd
+                _total_cost_usd += cost
+                logger.info(
+                    "claude 完成: turns=%d  本次=$%.4f  累计=$%.4f",
+                    msg.num_turns, cost, _total_cost_usd,
+                )
 
     except Exception as exc:
         logger.error("claude-agent-sdk 调用失败: %s", exc)
@@ -332,15 +332,139 @@ def _parse_output(output: str) -> dict | None:
     return data
 
 
+def _format_tool_detail(name: str, inp: dict) -> str:
+    """格式化 tool 调用的摘要信息（完整，不截断关键字段）。"""
+    if name == "Read":
+        path = inp.get("file_path", inp.get("path", ""))
+        offset = inp.get("offset")
+        limit = inp.get("limit")
+        if offset is not None or limit is not None:
+            start = offset or 1
+            end = (start + limit - 1) if limit else "EOF"
+            return f"{path}  [{start}~{end} 行]"
+        return f"{path}  [整个文件]"
+    elif name in ("Edit", "Write"):
+        return inp.get("file_path", inp.get("path", ""))
+    elif name == "Bash":
+        return inp.get("command", "")  # 完整命令，不截断
+    elif name == "Glob":
+        return inp.get("pattern", "")
+    elif name == "Grep":
+        path = inp.get("path", "")
+        pattern = inp.get("pattern", "")
+        return f"{pattern!r} in {path}" if path else pattern
+    elif name == "TodoWrite":
+        todos = inp.get("todos", [])
+        parts = [f"({len(todos)} items)"]
+        for t in todos:
+            status = t.get("status", "?")
+            icon = {"completed": "✓", "in_progress": "→", "pending": "○"}.get(status, "?")
+            parts.append(f"  {icon} {t.get('content', '')}")
+        return "\n".join(parts)
+    elif name == "Agent":
+        desc = inp.get("description", "")
+        prompt = inp.get("prompt", "")
+        # 显示 description + prompt 前 200 字
+        snippet = prompt[:200] + ("…" if len(prompt) > 200 else "")
+        return f"{desc}\n  {snippet}" if desc else snippet
+    elif name == "Skill":
+        return inp.get("skill", str(inp))
+    else:
+        # 其他 tool：完整 JSON，但对超长 value 做截断
+        return str(inp)
+
+
+# ── rich console（仅终端输出用）──────────────────────────────────
+try:
+    from rich.console import Console as _RichConsole
+    from rich.text import Text as _RichText
+    _rich_console = _RichConsole(highlight=False)
+    _HAS_RICH = True
+except ImportError:
+    _HAS_RICH = False
+
+# tool 名 → 颜色映射
+_TOOL_COLORS = {
+    "Read":      "cyan",
+    "Write":     "green",
+    "Edit":      "yellow",
+    "Bash":      "magenta",
+    "Glob":      "blue",
+    "Grep":      "blue",
+    "TodoWrite": "dark_orange",
+    "Agent":     "bright_red",
+    "Skill":     "bright_magenta",
+}
+_TOOL_DEFAULT_COLOR = "bright_black"
+
+
 def _stream_write(text: str) -> None:
-    """写到终端 + loop.log 文件。"""
+    """写到终端（纯文本）+ loop.log，用于非 tool 的结构化输出（分隔线等）。"""
     sys.stdout.write(text)
     try:
         sys.stdout.flush()
     except Exception:
         pass
-    # 同步写入日志文件
     _log_file_write(text)
+
+
+def _stream_write_text(text: str) -> None:
+    """将 claude 流式文字写到终端（rich 染色）+ loop.log（纯文本）。"""
+    _log_file_write(text)
+    if _HAS_RICH and text:
+        # 用 bright_white 渲染正文，保持可读但有别于 logging 的白色
+        _rich_console.print(text, end="", style="bright_white")
+    else:
+        sys.stdout.write(text)
+        try:
+            sys.stdout.flush()
+        except Exception:
+            pass
+
+
+def _stream_write_separator() -> None:
+    """输出带时间戳的分隔线（终端彩色 + log 纯文本）。"""
+    sep_plain = _timestamp_separator()
+    _log_file_write(sep_plain)
+    if _HAS_RICH:
+        now = datetime.now().strftime("%H:%M:%S")
+        line = _RichText()
+        line.append("\n")
+        line.append("─" * 20, style="dim cyan")
+        line.append(f" [{now}] ", style="bold cyan")
+        line.append("─" * 20, style="dim cyan")
+        line.append("\n")
+        _rich_console.print(line, end="")
+    else:
+        sys.stdout.write(sep_plain)
+        sys.stdout.flush()
+
+
+def _stream_write_tool(name: str, detail: str) -> None:
+    """将 tool 调用行以彩色格式写到终端，纯文本写到 log。"""
+    plain = f"\n[tool:{name}] {detail}\n"
+    _log_file_write(plain)
+
+    if _HAS_RICH:
+        color = _TOOL_COLORS.get(name, _TOOL_DEFAULT_COLOR)
+        # 第一行：tool 标签用颜色 + bold，detail 首行同色
+        detail_lines = detail.splitlines()
+        first_line = detail_lines[0] if detail_lines else ""
+        rest_lines = detail_lines[1:]
+
+        line = _RichText()
+        line.append("\n")
+        line.append(f"[tool:{name}]", style=f"bold {color}")
+        line.append(" ")
+        line.append(first_line, style=color)
+        for extra in rest_lines:
+            line.append("\n")
+            line.append(f"  {extra}", style=f"dim {color}")
+        line.append("\n")
+        _rich_console.print(line, end="")
+    else:
+        sys.stdout.write(plain)
+        sys.stdout.flush()
 
 
 def _log_file_write(text: str) -> None:
