@@ -146,3 +146,5 @@ template/
 loop.log
 
 .codex
+
+state/

@@ -37,14 +37,32 @@ except ImportError:
 
 # ── 日志配置 ──────────────────────────────────────────────────
 def _setup_logging(log_file: Path) -> None:
-    fmt = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    from rich.console import Console
+    from rich.logging import RichHandler
+
     root = logging.getLogger()
     root.handlers.clear()
-    handlers = [
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(log_file, encoding="utf-8"),
-    ]
-    logging.basicConfig(level=logging.INFO, format=fmt, handlers=handlers)
+    root.setLevel(logging.INFO)
+
+    # 终端：rich 彩色输出
+    console = Console(highlight=True)
+    rich_handler = RichHandler(
+        console=console,
+        show_time=True,
+        show_path=False,
+        markup=True,
+        rich_tracebacks=True,
+    )
+    rich_handler.setLevel(logging.INFO)
+
+    # 文件：纯文本
+    file_fmt = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+    file_handler = logging.FileHandler(log_file, encoding="utf-8")
+    file_handler.setFormatter(file_fmt)
+    file_handler.setLevel(logging.INFO)
+
+    root.addHandler(rich_handler)
+    root.addHandler(file_handler)
 
 
 # ── 配置加载 ──────────────────────────────────────────────────

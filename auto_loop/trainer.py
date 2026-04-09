@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -69,6 +70,27 @@ def _list_sessions() -> set[str]:
     return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
 
+def _capture_ep_info(session: str) -> str:
+    """从 tmux session 的最后几行中提取 ep 信息（如 ep102-240）。"""
+    try:
+        result = subprocess.run(
+            ["tmux", "capture-pane", "-t", session, "-p", "-S", "-5"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return ""
+        lines = result.stdout.strip().splitlines()
+        # 从后往前找包含 ep 信息的行
+        ep_pattern = re.compile(r"ep\d+[-/]\d+")
+        for line in reversed(lines):
+            match = ep_pattern.search(line)
+            if match:
+                return match.group()
+        return ""
+    except Exception:
+        return ""
+
+
 def wait_until_done(session: str, poll_interval: int = 300, timeout_hours: float = 24.0) -> str:
     """
     阻塞等待训练完成。
@@ -85,7 +107,11 @@ def wait_until_done(session: str, poll_interval: int = 300, timeout_hours: float
             logger.info("tmux session '%s' 已消失，训练结束", session)
             return "done"
         elapsed_h = (i + 1) * poll_interval / 3600
-        logger.info("训练进行中... (%.1fh / %.1fh)", elapsed_h, timeout_hours)
+        ep_info = _capture_ep_info(session)
+        if ep_info:
+            logger.info("训练进行中... (%.1fh / %.1fh) [%s]", elapsed_h, timeout_hours, ep_info)
+        else:
+            logger.info("训练进行中... (%.1fh / %.1fh)", elapsed_h, timeout_hours)
 
     logger.warning("训练超时 (%.1fh)，强制终止 session '%s'", timeout_hours, session)
     subprocess.run(["tmux", "kill-session", "-t", session], capture_output=True)

@@ -4,7 +4,6 @@
 """
 from __future__ import annotations
 
-import json
 import logging
 import subprocess
 from pathlib import Path
@@ -28,7 +27,7 @@ def find_output_dir(yml_path: str) -> Path:
     raise FileNotFoundError(f"找不到训练输出目录: {output_dir}，已搜索 {OUTPUTS_ROOT}")
 
 
-def get_eval_pth(output_dir: Path, gpu: str = "0", auto_eval: bool = True) -> Path:
+def get_eval_pth(output_dir: Path, yml_path: str, gpu: str = "0", auto_eval: bool = True) -> Path:
     """返回 eval.pth 路径，不存在时可自动运行 test.sh。"""
     eval_pth = output_dir / "eval" / "eval.pth"
     if eval_pth.exists():
@@ -43,15 +42,6 @@ def get_eval_pth(output_dir: Path, gpu: str = "0", auto_eval: bool = True) -> Pa
         best_pth = output_dir / "best_stg1.pth"
     if not best_pth.exists():
         raise FileNotFoundError(f"找不到 best_stg*.pth in {output_dir}")
-
-    # 从 args.json 读取训练 yml 路径
-    args_json = output_dir / "args.json"
-    if not args_json.exists():
-        raise FileNotFoundError(f"找不到 args.json in {output_dir}")
-
-    with open(args_json) as f:
-        args = json.load(f)
-    yml_path = args.get("config", "")
 
     cmd = [
         "bash", str(TEST_SH),
@@ -117,7 +107,7 @@ def get_ap(yml_path: str, gpu: str = "0", auto_eval: bool = True) -> tuple[float
     """
     output_dir = find_output_dir(yml_path)
     logger.info("输出目录: %s", output_dir)
-    eval_pth = get_eval_pth(output_dir, gpu=gpu, auto_eval=auto_eval)
+    eval_pth = get_eval_pth(output_dir, yml_path, gpu=gpu, auto_eval=auto_eval)
     metrics = extract_metrics(eval_pth)
     ap   = metrics.get("AP",   -1.0)
     ap50 = metrics.get("AP50", -1.0)

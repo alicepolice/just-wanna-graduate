@@ -10,6 +10,7 @@ import re
 import sys
 import textwrap
 import threading
+from datetime import datetime
 from pathlib import Path
 
 from claude_agent_sdk import ClaudeAgentOptions, query
@@ -20,6 +21,7 @@ try:
         CLAUDE_EFFORT,
         CLAUDE_MODEL,
         DEIM_ROOT,
+        RECORD_DIR,
         SKILL_FILE,
     )
 except ImportError:
@@ -27,6 +29,7 @@ except ImportError:
         CLAUDE_EFFORT,
         CLAUDE_MODEL,
         DEIM_ROOT,
+        RECORD_DIR,
         SKILL_FILE,
     )
 
@@ -54,6 +57,12 @@ def _build_user_prompt(state: dict, next_version: str) -> str:
     best_ap50 = best.get("ap50", "N/A")
     next_yaml_path, next_yml_path = _infer_next_artifact_paths(best, next_version)
 
+    # 计算记录文件的规范路径（相对于 DEIM_ROOT）
+    record_dir_rel = RECORD_DIR.relative_to(DEIM_ROOT)
+    # 从 next_yaml_path 推导模型名（如 dfine-n-v2）
+    next_model_stem = Path(next_yaml_path).stem
+    record_file_path = f"{record_dir_rel}/{next_model_stem}.md"
+
     return textwrap.dedent(f"""
         ## 自动迭代任务
 
@@ -75,7 +84,8 @@ def _build_user_prompt(state: dict, next_version: str) -> str:
         1. 基于当前最优模型，选择一个**尚未尝试**的改进方向
         2. 完整执行 Phase 1~6（分析→方案→YAML→验证→记录）
         3. 基于当前 `state.json` 的最优模型路径，本轮新 YAML 应写到 `{next_yaml_path}`，训练 YML 应写到 `{next_yml_path}`
-        4. 完成后，在回复**最末尾**输出以下 JSON 块（不要省略，不要修改格式）：
+        4. **实验记录必须保存到 `{record_file_path}`**（命名规范：与模型 YAML 同名，如 `{next_model_stem}.md`）
+        5. 完成后，在回复**最末尾**输出以下 JSON 块（不要省略，不要修改格式）：
 
         ```json
         {{{_JSON_MARKER}}}
@@ -84,7 +94,7 @@ def _build_user_prompt(state: dict, next_version: str) -> str:
           "yaml_path": "<相对于 DEIM_ROOT 的 yaml 路径>",
           "yml_path": "<相对于 DEIM_ROOT 的 yml 路径>",
           "strategy_name": "<本轮改进策略名称，一句话>",
-          "record_path": "<实验记录 md 文件路径>",
+          "record_path": "{record_file_path}",
           "get_info_passed": true
         }}
         ```
@@ -210,6 +220,7 @@ async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | Non
     stream_text_parts: list[str] = []
     got_first_token = False
     pending_tools: dict[str, dict] = {}
+    need_separator = False  # 在 tool 调用后、下一段文本前插入分隔线
 
     try:
         async for msg in query(prompt=user_prompt, options=options):
@@ -224,6 +235,10 @@ async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | Non
                         if text and not got_first_token:
                             got_first_token = True
                             logger.info("首个 token 到达")
+                        # 在 tool 调用结束后的首段文本前插入时间戳分隔线
+                        if text and need_separator:
+                            _stream_write(_timestamp_separator())
+                            need_separator = False
                         stream_text_parts.append(text)
                         _stream_write(text)
                     elif delta.get("type") == "input_json_delta":
@@ -257,6 +272,7 @@ async def _call_claude_async(system_prompt: str, user_prompt: str) -> dict | Non
                         else:
                             detail = str(inp)[:120]
                         _stream_write(f"\n[tool:{name}] {detail}\n")
+                        need_separator = True
 
             elif isinstance(msg, AssistantMessage):
                 for block in msg.content:
@@ -317,11 +333,30 @@ def _parse_output(output: str) -> dict | None:
 
 
 def _stream_write(text: str) -> None:
+    """写到终端 + loop.log 文件。"""
     sys.stdout.write(text)
-    flush = getattr(sys.stdout, "flush", None)
-    if flush is None:
-        return
     try:
-        flush()
+        sys.stdout.flush()
     except Exception:
-        logger.debug("stdout flush 失败，已忽略", exc_info=True)
+        pass
+    # 同步写入日志文件
+    _log_file_write(text)
+
+
+def _log_file_write(text: str) -> None:
+    """追加写入 loop.log（与 logging FileHandler 共享同一文件）。"""
+    try:
+        from .config import LOOP_LOG
+    except ImportError:
+        from config import LOOP_LOG
+    try:
+        with open(LOOP_LOG, "a", encoding="utf-8") as f:
+            f.write(text)
+    except Exception:
+        pass
+
+
+def _timestamp_separator() -> str:
+    """生成带时间戳的分隔线，用于区分 claude 流式输出的不同段落。"""
+    now = datetime.now().strftime("%H:%M:%S")
+    return f"\n{'─' * 20} [{now}] {'─' * 20}\n"
