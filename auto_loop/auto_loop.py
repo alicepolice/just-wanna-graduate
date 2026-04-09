@@ -50,7 +50,7 @@ def _setup_logging(log_file: Path) -> None:
         console=console,
         show_time=True,
         show_path=False,
-        markup=True,
+        markup=False,
         rich_tracebacks=True,
     )
     rich_handler.setLevel(logging.INFO)
