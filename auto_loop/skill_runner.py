@@ -88,7 +88,9 @@ def _build_user_prompt(state: dict, next_version: str) -> str:
         2. 完整执行 Phase 1~6（分析→方案→YAML→验证→记录）
         3. 基于当前 `state.json` 的最优模型路径，本轮新 YAML 应写到 `{next_yaml_path}`，训练 YML 应写到 `{next_yml_path}`
         4. **实验记录必须保存到 `{record_file_path}`**（命名规范：与模型 YAML 同名，如 `{next_model_stem}.md`）
-        5. 完成后，在回复**最末尾**输出以下 JSON 块（不要省略，不要修改格式）：
+        5. Phase 5 验证：直接用 Bash tool 运行 `python tools/benchmark/get_info.py -c {next_yml_path}`；
+           若 Bash 被安全策略拦截，改用静态通道追踪手动验证，`get_info_passed` 填 `true`（调度器会在训练前再次自动验证）
+        6. 完成后，在回复**最末尾**输出以下 JSON 块（不要省略，不要修改格式）：
 
         ```json
         {{{_JSON_MARKER}}}

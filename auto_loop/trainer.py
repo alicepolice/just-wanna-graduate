@@ -34,10 +34,11 @@ def _pick_session_name(base_session: str, existing_sessions: set[str]) -> str:
 
 def start(yml_path: str, gpu: str = "0") -> str:
     """
-    启动训练，返回 tmux session 名。
+    启动训练，返回 tmux session 的 base 名（不含 ep 后缀）。
     由 trainer 自己创建 detached tmux session，在里面运行 train.sh。
     train.sh 检测到已在 tmux 中会跳过自己的 tmux 创建，直接执行 torchrun。
-    训练完命令退出，session 自动消失。
+    DEIM 训练过程中会 rename-session 追加 _epN-M 后缀，
+    wait_until_done 通过前缀匹配持续追踪。
     """
     base_session = _session_name(yml_path)
     session = _pick_session_name(base_session, _list_sessions())
@@ -48,7 +49,19 @@ def start(yml_path: str, gpu: str = "0") -> str:
     logger.info("启动训练: %s (GPU=%s, session=%s)", yml_path, gpu, session)
     subprocess.run(cmd, cwd=str(DEIM_ROOT), check=True)
     logger.info("tmux session '%s' 已创建", session)
-    return session
+    return session  # 返回 base 名，后续通过前缀匹配追踪
+
+
+def _find_session_by_prefix(base: str) -> str:
+    """
+    查找以 base 为前缀的 tmux session（应对 DEIM rename-session 追加 _epN-M 后缀）。
+    返回找到的实际 session 名，找不到返回空串。
+    匹配规则：session == base  OR  session.startswith(base + "_")
+    """
+    for s in _list_sessions():
+        if s == base or s.startswith(base + "_"):
+            return s
+    return ""
 
 
 def _session_exists(session: str) -> bool:
@@ -70,57 +83,72 @@ def _list_sessions() -> set[str]:
     return {line.strip() for line in result.stdout.splitlines() if line.strip()}
 
 
-def _capture_ep_info(session: str) -> str:
-    """从 tmux session 的最后几行中提取 ep 信息（如 ep102-240）。"""
+def _capture_ep_info(base_session: str) -> tuple[str, str]:
+    """
+    从 tmux session 的末尾几行中提取 ep 信息（如 ep5-9）。
+    先通过前缀匹配找到实际 session 名（可能已被 rename），
+    返回 (actual_session_name, ep_info_string)。
+    """
+    actual = _find_session_by_prefix(base_session)
+    if not actual:
+        return "", ""
+    # 从 session 名本身提取 ep 信息（DEIM rename 格式：base_epN-M）
+    ep_pattern = re.compile(r"ep(\d+[-/]\d+)")
+    m = ep_pattern.search(actual)
+    if m:
+        return actual, m.group()
+    # 退回到 capture-pane 内容提取
     try:
         result = subprocess.run(
-            ["tmux", "capture-pane", "-t", session, "-p", "-S", "-5"],
+            ["tmux", "capture-pane", "-t", actual, "-p", "-S", "-5"],
             capture_output=True, text=True, timeout=5,
         )
         if result.returncode != 0:
-            return ""
-        lines = result.stdout.strip().splitlines()
-        # 从后往前找包含 ep 信息的行
-        ep_pattern = re.compile(r"ep\d+[-/]\d+")
-        for line in reversed(lines):
-            match = ep_pattern.search(line)
-            if match:
-                return match.group()
-        return ""
+            return actual, ""
+        for line in reversed(result.stdout.strip().splitlines()):
+            m2 = ep_pattern.search(line)
+            if m2:
+                return actual, m2.group()
     except Exception:
-        return ""
+        pass
+    return actual, ""
 
 
 def wait_until_done(session: str, poll_interval: int = 300, timeout_hours: float = 24.0) -> str:
     """
-    阻塞等待训练完成。
-    返回 'done' | 'timeout' | 'not_found'。
-    poll_interval: 轮询间隔（秒），默认 5 分钟
-    timeout_hours: 超时时间（小时）
+    阻塞等待训练完成。session 是 start() 返回的 base 名。
+    DEIM 训练中会 rename-session 追加 _epN-M，这里通过前缀匹配追踪。
+    返回 'done' | 'timeout'。
     """
     max_polls = int(timeout_hours * 3600 / poll_interval)
-    logger.info("等待训练完成 (session=%s, 超时=%.1fh)...", session, timeout_hours)
+    logger.info("等待训练完成 (session=%s*, 超时=%.1fh)...", session, timeout_hours)
 
-    # 启动后稍等 3 秒再做首次快照，给 torchrun 时间输出第一行
-    time.sleep(3)
-    ep_info = _capture_ep_info(session)
-    if ep_info:
-        logger.info("训练已启动 [%s]", ep_info)
+    # 启动后稍等 5 秒，给 torchrun + conda activate 时间完成初始化
+    time.sleep(5)
+    actual, ep_info = _capture_ep_info(session)
+    if actual:
+        if ep_info:
+            logger.info("训练已启动 (实际session=%s) [%s]", actual, ep_info)
+        else:
+            logger.info("训练已启动 (实际session=%s)", actual)
 
     for i in range(max_polls):
         time.sleep(poll_interval)
-        if not _session_exists(session):
-            logger.info("tmux session '%s' 已消失，训练结束", session)
+        actual, ep_info = _capture_ep_info(session)
+        if not actual:
+            # 前缀匹配找不到任何 session → 训练结束
+            logger.info("tmux session '%s*' 已消失，训练结束", session)
             return "done"
         elapsed_h = (i + 1) * poll_interval / 3600
-        ep_info = _capture_ep_info(session)
         if ep_info:
             logger.info("训练进行中... (%.1fh / %.1fh) [%s]", elapsed_h, timeout_hours, ep_info)
         else:
-            logger.info("训练进行中... (%.1fh / %.1fh)", elapsed_h, timeout_hours)
+            logger.info("训练进行中... (%.1fh / %.1fh) [session=%s]", elapsed_h, timeout_hours, actual)
 
     logger.warning("训练超时 (%.1fh)，强制终止 session '%s'", timeout_hours, session)
-    subprocess.run(["tmux", "kill-session", "-t", session], capture_output=True)
+    actual, _ = _capture_ep_info(session)
+    target = actual or session
+    subprocess.run(["tmux", "kill-session", "-t", target], capture_output=True)
     return "timeout"
 
 

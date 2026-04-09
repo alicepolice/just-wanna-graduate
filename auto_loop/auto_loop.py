@@ -158,12 +158,12 @@ def _run_one_iteration(cfg: dict, dry_run: bool) -> str:
     s = state_mod.reserve_iteration(s, version)
     state_mod.save(s)
 
-    # ② 验证 YAML（skill 内部已验证，这里做二次确认）
-    if not skill_result.get("get_info_passed"):
-        log.info("skill 未报告 get_info 通过，重新验证...")
-        if not _validate_yml(yml_path):
-            log.error("YAML 验证失败，跳过本轮")
-            return "failed"
+    # ② 验证 YAML —— 始终由 auto_loop 自己跑 get_info，不依赖 skill 的报告
+    # （skill 内的 Bash tool 可能被安全策略拦截，auto_loop 自身运行不受此限制）
+    log.info("运行 get_info 验证 YAML...")
+    if not _validate_yml(yml_path):
+        log.error("YAML 验证失败，跳过本轮")
+        return "failed"
 
     # ③ 用户确认（auto_approve=False 时）
     if not cfg["auto_approve"]:

@@ -50,7 +50,17 @@ def get_eval_pth(output_dir: Path, yml_path: str, gpu: str = "0", auto_eval: boo
         best_pth.name,
     ]
     logger.info("运行: %s", " ".join(cmd))
-    result = subprocess.run(cmd, cwd=str(DEIM_ROOT), capture_output=True, text=True)
+    # 伪造 $TMUX 非空，让 test.sh 跳过"创建 tmux session + read 阻塞"分支，
+    # 直接走内层执行路径。同时注入 TMUX_SESSION_NAME 供 det_solver rename 使用。
+    import os
+    fake_env = os.environ.copy()
+    fake_env.setdefault("TMUX", "auto_loop_fake")
+    fake_env.setdefault("TMUX_SESSION_NAME", Path(yml_path).stem + "_test")
+    result = subprocess.run(
+        cmd, cwd=str(DEIM_ROOT),
+        capture_output=True, text=True,
+        env=fake_env,
+    )
     if result.returncode != 0:
         logger.error("test.sh 失败:\n%s", result.stderr[-2000:])
         raise RuntimeError("test.sh 运行失败")
