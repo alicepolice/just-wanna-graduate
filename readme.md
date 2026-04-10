@@ -232,6 +232,7 @@ DEIM_ROOT = Path(os.environ.get("DEIM_ROOT", "/home/exp/DEIM-MOD-V2"))
 
 ## Related Work
 
+- [mempalace](https://github.com/milla-jovovich/mempalace) - The highest-scoring AI memory system ever benchmarked
 - [academic-research-skills](https://github.com/Imbad0202/academic-research-skills) — Academic Research Skills for Claude Code
 - [Awesome-Deep-Research](https://github.com/DavidZWZ/Awesome-Deep-Research) — Awesome Agentic Deep Research Resources
 - [AI-Scientist-v2](https://github.com/SakanaAI/AI-Scientist-v2) — Workshop-Level Automated Scientific Discovery via Agentic Tree Search
