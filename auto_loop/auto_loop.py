@@ -152,6 +152,7 @@ def _run_one_iteration(cfg: dict, dry_run: bool) -> str:
     yml_path  = skill_result["yml_path"]
     yaml_path = skill_result["yaml_path"]
     strategy  = skill_result["strategy_name"]
+    rationale = skill_result.get("strategy_rationale", "")
     version = skill_result.get("version", version)
 
     s = state_mod.load()
@@ -218,7 +219,7 @@ def _run_one_iteration(cfg: dict, dry_run: bool) -> str:
     s = state_mod.load()
     best_ap = state_mod.get_best_ap(s) or 0.0
     kept = ap > best_ap
-    s = state_mod.record_experiment_result(s, ap, ap50, strategy, kept)
+    s = state_mod.record_experiment_result(s, ap, ap50, strategy, kept, rationale=rationale)
     state_mod.save(s)
 
     if kept:

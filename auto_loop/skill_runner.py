@@ -47,10 +47,14 @@ def _build_user_prompt(state: dict, next_version: str) -> str:
     tried = state.get("tried_strategies", [])
     history = state.get("history", [])
 
-    history_lines = "\n".join(
-        f"  - {h['version']}: AP={h['ap']:.4f} ({h['delta']}) {'✓' if h['kept'] else '✗'} [{h.get('strategy', '')}]"
-        for h in history[-10:]
-    ) or "  （暂无历史）"
+    def _fmt_history(h: dict) -> str:
+        icon = "✓" if h["kept"] else "✗"
+        line = f"  - {h['version']}: AP={h['ap']:.4f} ({h['delta']}) {icon} [{h.get('strategy', '')}]"
+        if not h["kept"] and h.get("rationale"):
+            line += f"\n      预期理由: {h['rationale']}"
+        return line
+
+    history_lines = "\n".join(_fmt_history(h) for h in history[-10:]) or "  （暂无历史）"
 
     tried_str = "、".join(tried) if tried else "（暂无）"
 
@@ -99,6 +103,7 @@ def _build_user_prompt(state: dict, next_version: str) -> str:
           "yaml_path": "<相对于 DEIM_ROOT 的 yaml 路径>",
           "yml_path": "<相对于 DEIM_ROOT 的 yml 路径>",
           "strategy_name": "<本轮改进策略名称，一句话>",
+          "strategy_rationale": "<为什么这个改动预期会提升 AP，一到两句话>",
           "record_path": "{record_file_path}",
           "get_info_passed": true
         }}
@@ -331,6 +336,8 @@ def _parse_output(output: str) -> dict | None:
                 data[key] = str(DEIM_ROOT / p)
 
     logger.info("解析成功: strategy=%s, yaml=%s", data["strategy_name"], data["yaml_path"])
+    if data.get("strategy_rationale"):
+        logger.info("策略理由: %s", data["strategy_rationale"])
     return data
 
 

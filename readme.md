@@ -78,9 +78,11 @@ just-wanna-graduate/
 
 ```
 ① skill_runner    读取当前 best_model、tried_strategies、最近 10 轮 history
+                   （失败轮次同时展示 strategy_rationale，供 Claude 推断失败原因）
                    调用 claude-agent-sdk 执行学术裁缝 Skill
                    要求 Skill 在回复末尾输出 AUTO_LOOP_RESULT JSON：
-                   version / yaml_path / yml_path / strategy_name / record_path
+                   version / yaml_path / yml_path / strategy_name
+                   strategy_rationale（为何预期有效）/ record_path
                          ↓
 ② auto_loop       预留 iteration 版本号，避免失败重跑覆盖同名产物
                    调用 get_info.py 校验训练 YML：
@@ -110,6 +112,7 @@ just-wanna-graduate/
                    若 AP > 当前 best_ap → 更新 best_model，status=kept
                    否则 status=discarded
                    strategy_name 会加入 tried_strategies
+                   strategy_rationale（失败时）存入 history，下一轮 prompt 可见
 ```
 
 ### 状态持久化
@@ -121,7 +124,7 @@ just-wanna-graduate/
 | `iteration` | 当前已预留的最大版本号，用来避免失败后重跑覆盖同名产物 |
 | `best_model` | 当前最优模型的 yaml/yml 路径、AP、AP50、版本号 |
 | `tried_strategies` | 已尝试的改进策略名列表，传给 Skill 用于去重 |
-| `history` | 每轮实验的 version、AP、AP50、delta、kept、strategy 记录 |
+| `history` | 每轮实验的 version、AP、AP50、delta、kept、strategy、rationale（可选）记录 |
 | `current_experiment` | 当前正在训练中的实验，开始训练时写入，结束后清空 |
 
 补充说明：

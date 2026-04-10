@@ -74,6 +74,7 @@ def record_experiment_result(
     ap50: float,
     strategy_name: str,
     kept: bool,
+    rationale: str = "",
 ) -> dict:
     """训练完成后更新状态：保留或回退。"""
     exp = state["current_experiment"]
@@ -90,14 +91,17 @@ def record_experiment_result(
     delta = f"{ap - best['ap']:+.4f}" if best else "N/A"
     exp["delta"] = delta
 
-    state["history"].append({
+    history_entry: dict = {
         "version": exp["version"],
         "ap": ap,
         "ap50": ap50,
         "delta": delta,
         "kept": kept,
         "strategy": strategy_name,
-    })
+    }
+    if rationale:
+        history_entry["rationale"] = rationale
+    state["history"].append(history_entry)
 
     if kept:
         state["best_model"] = {
