@@ -16,7 +16,7 @@
   <code>claude-agent-sdk</code> + <code>tmux</code> + <code>COCO eval</code> 驱动的全自动闭环
 </p>
 
-> **WIP** — 项目仍在迭代中，暂不建议直接使用。计划暑假前完成稳定版本。
+> **WIP** — 项目仍在迭代中，只是个框架雏形，还用不了。计划暑假完善
 
 ---
 
